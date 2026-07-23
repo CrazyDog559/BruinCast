@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Other Media — BruinCast</title>
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <div class="brand"><h1>Other Media &amp; Infrastructure</h1>
+      <span class="tag-line">The wider ecosystem already out there</span></div>
+    <p class="lead">Beyond newspapers and campus radio sits another layer: conference broadcast networks,
+      esports production, social-content teams, and the people and programs shaping the field. This is the
+      infrastructure UCLA can plug into rather than build from scratch.</p>
+    <nav class="site">
+      <a href="index.html">Research</a>
+      <a href="ucla.html">UCLA</a>
+      <a href="colleges.html">Colleges</a>
+      <a href="other-media.html" aria-current="page">Other Media</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="stats" id="stats"></div>
+
+  <div class="eyebrow">Live media</div>
+  <p class="sub">Student-run esports broadcast, embedded.</p>
+  <div id="embeds"></div>
+
+  <div class="eyebrow">Conference networks &amp; broadcast pipelines</div>
+  <p class="sub">How live games actually get produced — the layer UCLA can join via the Big Ten Network.</p>
+  <div id="broadcast"></div>
+
+  <div class="eyebrow">Esports &amp; gaming production</div>
+  <p class="sub">Competitive gaming programs with real student broadcast arms.</p>
+  <div id="esports"></div>
+
+  <div class="eyebrow">Social &amp; emerging formats</div>
+  <div id="social"></div>
+
+  <div class="eyebrow">Thought leaders &amp; programs shaping the field</div>
+  <div id="leaders"></div>
+
+  <div class="eyebrow">Tracked feeds</div>
+  <p class="sub">Live sources the reader ingests. Browse them on the <a href="index.html">Research → Feed Reader</a> tab.</p>
+  <div id="feeds"></div>
+
+  <footer id="foot"></footer>
+</div>
+
+<script src="assets/data.js"></script>
+<script src="assets/site.js"></script>
+<script>
+const {DB, el, esc, by, where, embeds, orgDetails} = BC;
+const catId = (name)=>{const c=DB.categories.find(c=>c.category_name===name);return c&&c.category_id;};
+
+const broadcast = where(DB.organizations,"category_id",catId("Athletics Broadcast"));
+const esports   = where(DB.organizations,"category_id",catId("Esports/Gaming"));
+const social    = where(DB.organizations,"category_id",catId("Social Media"));
+
+el("stats").innerHTML = [
+  ["Broadcast programs", broadcast.length],
+  ["Esports programs", esports.length],
+  ["Thought leaders", DB.thought_leaders.length],
+  ["Feeds tracked", DB.feeds.length],
+].map(([k,v])=>`<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("");
+
+el("embeds").innerHTML = embeds("other");
+el("broadcast").innerHTML = broadcast.map(orgDetails).join("");
+el("esports").innerHTML = esports.map(orgDetails).join("");
+el("social").innerHTML = social.length ? social.map(orgDetails).join("")
+  : `<div class="empty">No dedicated social-content orgs catalogued yet — an emerging area.</div>`;
+
+el("leaders").innerHTML = DB.thought_leaders.map(l=>{
+  const s = by(DB.schools,"school_id",l.school_id);
+  return `<div class="card"><h3>${esc(l.name)} ${s?`<span class="tag">${esc(s.school_name)}</span>`:""}</h3>
+    <p style="margin:.2em 0;color:var(--muted);font-size:13px">${esc(l.role)}</p>
+    <p style="margin:.3em 0 0">${esc(l.note)}</p></div>`;
+}).join("");
+
+el("feeds").innerHTML = `<div class="tablewrap"><table>
+  <thead><tr><th>Feed</th><th>Vertical</th><th>School</th></tr></thead><tbody>` +
+  DB.feeds.map(f=>{const s=by(DB.schools,"school_id",f.school_id);
+    return `<tr><td><strong>${esc(f.feed_name)}</strong></td>
+      <td><span class="tag blue">${esc(f.vertical)}</span></td>
+      <td>${s?esc(s.school_name):"—"}</td></tr>`;}).join("") +
+  `</tbody></table></div>`;
+
+el("foot").textContent = "The infrastructure layer of the BruinCast dataset — networks, esports, social and thought leadership.";
+</script>
+</body>
+</html>

@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BruinCast — Student-Run Media Research</title>
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+
+<header>
+  <div class="hwrap">
+    <h1>BruinCast — Student-Run Media Research</h1>
+    <p>Benchmarking student media across US universities to identify what UCLA should build next.
+       Browse the dataset, query it with SQL, and read live feeds.</p>
+    <nav class="site">
+      <a href="index.html" aria-current="page">Research</a>
+      <a href="ucla.html">UCLA</a>
+      <a href="colleges.html">Colleges</a>
+      <a href="other-media.html">Other Media</a>
+    </nav>
+    <nav class="tabs" id="nav">
+      <button data-t="overview" aria-selected="true">Overview</button>
+      <button data-t="orgs" aria-selected="false">Organizations</button>
+      <button data-t="recs" aria-selected="false">Recommendations</button>
+      <button data-t="deep" aria-selected="false">Deep Dives</button>
+      <button data-t="sql" aria-selected="false">SQL Console</button>
+      <button data-t="reader" aria-selected="false">Feed Reader</button>
+      <button data-t="sources" aria-selected="false">Sources</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- OVERVIEW -->
+  <section class="pane" id="overview">
+    <h2>Overview</h2>
+    <p class="sub">What the benchmarking found, and where UCLA stands.</p>
+    <div class="stats" id="ovstats"></div>
+
+    <div class="card finding">
+      <h3>The pattern that separates strong programs</h3>
+      <p>The best student media operations treat their work as a <strong>connected production system</strong>,
+      not a set of separate clubs. Syracuse, Penn State and the Big Ten Network campuses fold print, radio,
+      TV and live broadcast into one structure where students rotate across mediums and earn academic credit
+      or pay for it.</p>
+    </div>
+
+    <div class="card finding">
+      <h3>UCLA's biggest opportunity: Big Ten Network StudentU</h3>
+      <p>BTN's StudentU program lets students on member campuses produce live games — <strong>2,000+ per year
+      conference-wide</strong> — streamed on B1G+, with select games airing on the cable channel, for credit and
+      pay. USC and Penn State already run it. <strong>UCLA joined the Big Ten in 2024 and can plug into the same
+      infrastructure</strong> (equipment, training, seminars) at low marginal cost.</p>
+    </div>
+
+    <div class="card finding">
+      <h3>The clearest structural gap: no student TV station</h3>
+      <p>USC's Trojan Vision reaches <strong>1.8M LA homes</strong> via LA36 plus campus cable, runs ~250 students,
+      and draws from six schools — cinematic arts, Annenberg, business, art, music and engineering. Syracuse's
+      CitrusTV runs 350+ students across five sports shows. UCLA has TFT but no comparable student-run channel.</p>
+    </div>
+
+    <div class="card finding">
+      <h3>The cheapest win available</h3>
+      <p>UCLA <em>already has</em> an Undergraduate Science Journal — it simply sits outside the Communications
+      Board umbrella. Folding existing orphaned publications into Student Media costs almost nothing and
+      immediately widens the ecosystem.</p>
+    </div>
+  </section>
+
+  <!-- ORGANIZATIONS -->
+  <section class="pane" id="orgs" hidden>
+    <h2>Organizations</h2>
+    <p class="sub">Every student media program in the dataset. Click any row to expand.</p>
+    <div class="controls">
+      <input type="search" id="oq" placeholder="Search organizations, schools, descriptions…">
+      <select id="oschool"><option value="">All schools</option></select>
+      <select id="ocat"><option value="">All categories</option></select>
+    </div>
+    <div id="olist"></div>
+  </section>
+
+  <!-- RECOMMENDATIONS -->
+  <section class="pane" id="recs" hidden>
+    <h2>Recommendations for UCLA</h2>
+    <p class="sub">Gap → recommended action → the program to copy.</p>
+    <div id="reclist"></div>
+  </section>
+
+  <!-- DEEP DIVES -->
+  <section class="pane" id="deep" hidden>
+    <h2>Deep Dive Areas</h2>
+    <p class="sub">Sports/Gaming as the primary track, plus five secondary areas.</p>
+    <div id="deeplist"></div>
+  </section>
+
+  <!-- SQL -->
+  <section class="pane" id="sql" hidden>
+    <h2>SQL Console</h2>
+    <p class="sub">Run real SQL against the full dataset, in your browser. Nothing leaves this page.</p>
+    <div id="sqlnote"></div>
+    <div class="card">
+      <div class="schema" id="schemaList"></div>
+    </div>
+    <textarea id="sqlq" spellcheck="false"></textarea>
+    <div class="sqlbar">
+      <button class="act" id="runsql">Run query</button>
+      <span id="sqlmeta" style="color:var(--muted);font-size:13px"></span>
+    </div>
+    <div class="controls" id="examples"></div>
+    <div id="sqlout"></div>
+  </section>
+
+  <!-- READER -->
+  <section class="pane" id="reader" hidden>
+    <h2>Feed Reader</h2>
+    <p class="sub">Live items pulled by the ingester. Registry of tracked feeds below if no data is loaded yet.</p>
+    <div class="controls">
+      <input type="search" id="rq" placeholder="Search headlines, outlets, authors…">
+      <select id="rvert"><option value="">All verticals</option></select>
+    </div>
+    <div id="rlist"></div>
+  </section>
+
+  <!-- SOURCES -->
+  <section class="pane" id="sources" hidden>
+    <h2>Sources</h2>
+    <p class="sub">Citations behind the research.</p>
+    <div id="srclist"></div>
+  </section>
+
+  <footer id="foot"></footer>
+</div>
+
+<script src="assets/data.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+<script>
+const DB = window.BRUINCAST_DATA;
+let FEED_ITEMS = [];
+
+const el  = (id)=>document.getElementById(id);
+const esc = (s)=>String(s==null?"":s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const by  = (arr,k,v)=>arr.find(r=>String(r[k])===String(v));
+
+/* ---------------- nav ---------------- */
+const TABS = ["overview","orgs","recs","deep","sql","reader","sources"];
+el("nav").onclick = (e)=>{
+  const b = e.target.closest("button[data-t]"); if(!b) return;
+  TABS.forEach(t=>el(t).hidden = (t!==b.dataset.t));
+  [...el("nav").children].forEach(c=>c.setAttribute("aria-selected", c===b));
+  window.scrollTo({top:0,behavior:"smooth"});
+};
+
+/* ---------------- overview ---------------- */
+function renderOverview(){
+  const stats = [
+    ["Organizations", DB.organizations.length],
+    ["Schools", DB.schools.length],
+    ["Verticals", DB.categories.length],
+    ["Feeds tracked", DB.feeds.length],
+    ["Recommendations", DB.ucla_recommendations.length],
+    ["Sources", DB.sources.length],
+  ];
+  el("ovstats").innerHTML = stats.map(([k,v])=>
+    `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("");
+}
+
+/* ---------------- organizations ---------------- */
+function renderOrgFilters(){
+  const schools = DB.schools.slice().sort((a,b)=>a.school_name.localeCompare(b.school_name));
+  el("oschool").innerHTML = '<option value="">All schools</option>' +
+    schools.map(s=>`<option value="${s.school_id}">${esc(s.school_name)}</option>`).join("");
+  el("ocat").innerHTML = '<option value="">All categories</option>' +
+    DB.categories.map(c=>`<option value="${c.category_id}">${esc(c.category_name)}</option>`).join("");
+  ["oq","oschool","ocat"].forEach(id=>el(id).addEventListener("input",renderOrgs));
+}
+
+function renderOrgs(){
+  const q = el("oq").value.toLowerCase().trim();
+  const sc = el("oschool").value, ct = el("ocat").value;
+
+  const rows = DB.organizations.filter(o=>{
+    if(sc && String(o.school_id)!==sc) return false;
+    if(ct && String(o.category_id)!==ct) return false;
+    if(q){
+      const school = by(DB.schools,"school_id",o.school_id);
+      const hay = [o.org_name,o.what_they_create,o.how_run_notes,o.governance_model,
+                   school&&school.school_name].join(" ").toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  el("olist").innerHTML = rows.length ? rows.map(o=>{
+    const school = by(DB.schools,"school_id",o.school_id);
+    const cat = by(DB.categories,"category_id",o.category_id);
+    const kids = DB.brands.filter(b=>String(b.org_id)===String(o.org_id));
+    return `<details class="org">
+      <summary>
+        <strong>${esc(o.org_name)}</strong>
+        ${school?`<span class="tag">${esc(school.school_name)}</span>`:""}
+        ${cat?`<span class="tag blue">${esc(cat.category_name)}</span>`:""}
+        ${o.founded_year?`<span class="tag">est. ${esc(o.founded_year)}</span>`:""}
+        ${o.member_count?`<span class="tag">${esc(o.member_count)} members</span>`:""}
+      </summary>
+      <div class="detail">
+        <dl class="kv">
+          <dt>Creates</dt><dd>${esc(o.what_they_create)||"—"}</dd>
+          <dt>How it's run</dt><dd>${esc(o.how_run_notes)||"—"}</dd>
+          <dt>Governance</dt><dd>${esc(o.governance_model)||"—"}</dd>
+          <dt>Funding</dt><dd>${esc(o.funding_model)||"—"}</dd>
+          <dt>Academic credit</dt><dd>${esc(o.academic_credit)||"—"}</dd>
+          <dt>Independent</dt><dd>${esc(o.independent_from_school)||"—"}</dd>
+          ${o.website?`<dt>Website</dt><dd><a href="https://${esc(String(o.website).replace(/^https?:\/\//,""))}" target="_blank" rel="noopener">${esc(o.website)}</a></dd>`:""}
+          ${kids.length?`<dt>Brands / shows</dt><dd>${kids.map(k=>`<strong>${esc(k.brand_name)}</strong> — ${esc(k.description)}`).join("<br>")}</dd>`:""}
+        </dl>
+      </div>
+    </details>`;
+  }).join("") : `<div class="empty">No organizations match those filters.</div>`;
+}
+
+/* ---------------- recommendations ---------------- */
+function renderRecs(){
+  const cls = p => p==="High" ? "hi" : p==="Medium" ? "med" : "low";
+  const order = {High:0, Medium:1, Low:2};
+  const rows = DB.ucla_recommendations.slice()
+    .sort((a,b)=>(order[a.priority]??9)-(order[b.priority]??9));
+  el("reclist").innerHTML = rows.map(r=>{
+    const cat = by(DB.categories,"category_id",r.category_id);
+    return `<div class="card">
+      <h3>${cat?esc(cat.category_name):"General"}
+        <span class="tag ${cls(r.priority)}">${esc(r.priority)} priority</span></h3>
+      <dl class="kv">
+        <dt>Gap</dt><dd>${esc(r.gap)}</dd>
+        <dt>Recommendation</dt><dd><strong>${esc(r.recommendation)}</strong></dd>
+        <dt>Model to copy</dt><dd>${esc(r.model_to_copy)}</dd>
+        <dt>Assessment</dt><dd>${esc(r.my_assessment)}</dd>
+      </dl></div>`;
+  }).join("");
+}
+
+/* ---------------- deep dives ---------------- */
+function renderDeep(){
+  el("deeplist").innerHTML = DB.deep_dive_areas.map(a=>{
+    const cls = a.priority==="High" ? "hi" : a.priority==="Medium" ? "med" : "low";
+    return `<div class="card">
+      <h3>${esc(a.area_name)}
+        <span class="tag ${a.tier==="Primary"?"blue":""}">${esc(a.tier)}</span>
+        <span class="tag ${cls}">${esc(a.priority)}</span></h3>
+      <dl class="kv">
+        <dt>Landscape</dt><dd>${esc(a.landscape_findings)}</dd>
+        <dt>UCLA implication</dt><dd>${esc(a.ucla_implication)}</dd>
+      </dl></div>`;
+  }).join("");
+}
+
+/* ---------------- sources ---------------- */
+function renderSources(){
+  el("srclist").innerHTML = `<div class="tablewrap"><table>
+    <thead><tr><th>#</th><th>Title</th><th>URL</th></tr></thead><tbody>` +
+    DB.sources.map(s=>`<tr><td class="num">${esc(s.source_id)}</td><td>${esc(s.title)}</td>
+      <td><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url)}</a></td></tr>`).join("") +
+    `</tbody></table></div>`;
+}
+
+/* ---------------- reader ---------------- */
+function renderReaderFilters(){
+  const verts = [...new Set(DB.feeds.map(f=>f.vertical).filter(Boolean))].sort();
+  el("rvert").innerHTML = '<option value="">All verticals</option>' +
+    verts.map(v=>`<option>${esc(v)}</option>`).join("");
+  ["rq","rvert"].forEach(id=>el(id).addEventListener("input",renderReader));
+}
+
+function fmtDate(iso){
+  if(!iso) return "";
+  const d = new Date(iso); if(isNaN(d)) return "";
+  const days = Math.floor((Date.now()-d)/86400000);
+  if(days===0) return "today"; if(days===1) return "yesterday";
+  if(days<30) return days+"d ago";
+  return d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
+}
+
+function renderReader(){
+  const q = el("rq").value.toLowerCase().trim(), v = el("rvert").value;
+
+  if(FEED_ITEMS.length){
+    const rows = FEED_ITEMS.filter(i=>{
+      if(v && i.vertical!==v) return false;
+      if(q && ![i.title,i.feed_name,i.author,i.summary,i.school_name].join(" ").toLowerCase().includes(q)) return false;
+      return true;
+    }).sort((a,b)=>String(b.published_at||"").localeCompare(String(a.published_at||"")));
+
+    el("rlist").innerHTML = rows.length ? rows.map(i=>{
+      const assets = Object.entries(i.assets||{}).map(([k,n])=>`<span class="tag">${n} ${esc(k)}</span>`).join("");
+      return `<article class="item">
+        ${i.thumbnail?`<img class="thumb" src="${esc(i.thumbnail)}" alt="" loading="lazy">`:""}
+        <div style="min-width:0;flex:1">
+          <h3><a href="${esc(i.link||"#")}" target="_blank" rel="noopener">${esc(i.title||"Untitled")}</a></h3>
+          <div class="meta"><strong>${esc(i.feed_name)}</strong>
+            ${i.school_name?`<span class="tag">${esc(i.school_name)}</span>`:""}
+            ${i.vertical?`<span class="tag blue">${esc(i.vertical.replace(/_/g," "))}</span>`:""}
+            ${i.author?`<span>· ${esc(i.author)}</span>`:""}
+            ${i.published_at?`<span>· ${fmtDate(i.published_at)}</span>`:""}${assets}</div>
+          ${i.summary?`<p class="summary">${esc(i.summary)}</p>`:""}
+        </div></article>`;
+    }).join("") : `<div class="empty">No items match those filters.</div>`;
+    return;
+  }
+
+  // no data.json — show the registry
+  const feeds = DB.feeds.filter(f=>{
+    if(v && f.vertical!==v) return false;
+    if(q && ![f.feed_name,f.feed_url,f.vertical].join(" ").toLowerCase().includes(q)) return false;
+    return true;
+  });
+  el("rlist").innerHTML =
+    `<div class="note"><strong>No feed data loaded yet.</strong> Run the ingester, then reload this page:<br>
+     <code>python3 ingest.py init</code> → <code>python3 ingest.py load feeds.csv</code> →
+     <code>python3 ingest.py fetch</code> → <code>python3 ingest.py export</code><br>
+     Serve this folder with <code>python3 -m http.server 8000</code> so the page can read
+     <code>data.json</code>. Below are the ${DB.feeds.length} feeds currently registered.</div>
+     <div class="tablewrap"><table>
+     <thead><tr><th>Feed</th><th>Vertical</th><th>School</th><th>URL</th></tr></thead><tbody>` +
+     feeds.map(f=>{
+       const s = by(DB.schools,"school_id",f.school_id);
+       return `<tr><td><strong>${esc(f.feed_name)}</strong></td>
+         <td><span class="tag blue">${esc(f.vertical)}</span></td>
+         <td>${s?esc(s.school_name):"—"}</td>
+         <td><a href="${esc(f.feed_url)}" target="_blank" rel="noopener">${esc(f.feed_url)}</a></td></tr>`;
+     }).join("") + `</tbody></table></div>`;
+}
+
+/* ---------------- SQL console ---------------- */
+const TABLES = ["schools","categories","organizations","brands","thought_leaders",
+                "ucla_recommendations","deep_dive_areas","sources","feeds"];
+const EXAMPLES = [
+  ["Orgs per category",
+   "SELECT c.category_name, COUNT(*) AS orgs\nFROM organizations o\nJOIN categories c ON c.category_id = o.category_id\nGROUP BY c.category_name\nORDER BY orgs DESC;"],
+  ["Programs granting academic credit",
+   "SELECT o.org_name, s.school_name, o.funding_model\nFROM organizations o\nJOIN schools s ON s.school_id = o.school_id\nWHERE o.academic_credit = 'Yes'\nORDER BY s.school_name;"],
+  ["High-priority UCLA gaps",
+   "SELECT c.category_name, r.gap, r.recommendation, r.model_to_copy\nFROM ucla_recommendations r\nJOIN categories c ON c.category_id = r.category_id\nWHERE r.priority = 'High';"],
+  ["Big Ten schools in dataset",
+   "SELECT s.school_name, COUNT(o.org_id) AS orgs\nFROM schools s\nLEFT JOIN organizations o ON o.school_id = s.school_id\nWHERE s.conference = 'Big Ten'\nGROUP BY s.school_name\nORDER BY orgs DESC;"],
+  ["Oldest organizations",
+   "SELECT org_name, founded_year\nFROM organizations\nWHERE founded_year IS NOT NULL\nORDER BY founded_year\nLIMIT 10;"],
+  ["Feeds by vertical",
+   "SELECT vertical, COUNT(*) AS feeds\nFROM feeds\nGROUP BY vertical\nORDER BY feeds DESC;"],
+  ["What UCLA has today",
+   "SELECT o.org_name, c.category_name, o.what_they_create\nFROM organizations o\nJOIN schools s ON s.school_id = o.school_id\nJOIN categories c ON c.category_id = o.category_id\nWHERE s.school_name LIKE '%Los Angeles%';"],
+  ["Independent student papers",
+   "SELECT o.org_name, s.school_name, o.founded_year, o.funding_model\nFROM organizations o\nJOIN schools s ON s.school_id = o.school_id\nWHERE o.independent_from_school = 'Yes'\nORDER BY o.founded_year;"],
+];
+
+let SQLDB = null;
+
+function colType(table, key){
+  const ints = ["school_id","category_id","org_id","brand_id","leader_id","rec_id",
+                "source_id","feed_id","area_id","founded_year"];
+  return ints.includes(key) ? "INTEGER" : "TEXT";
+}
+
+function buildSqlDb(SQL){
+  const db = new SQL.Database();
+  TABLES.forEach(t=>{
+    const rows = DB[t]; if(!rows || !rows.length) return;
+    const cols = Object.keys(rows[0]);
+    db.run(`CREATE TABLE ${t} (${cols.map(c=>`"${c}" ${colType(t,c)}`).join(", ")});`);
+    const stmt = db.prepare(`INSERT INTO ${t} VALUES (${cols.map(()=>"?").join(",")})`);
+    rows.forEach(r=>{
+      stmt.run(cols.map(c=>{
+        const v = r[c];
+        if(v===null||v===undefined||v==="None"||v==="") return null;
+        return colType(t,c)==="INTEGER" ? (isNaN(parseInt(v))?null:parseInt(v)) : String(v);
+      }));
+    });
+    stmt.free();
+  });
+  return db;
+}
+
+function renderSchema(){
+  el("schemaList").innerHTML = TABLES.map(t=>{
+    const rows = DB[t]||[];
+    const cols = rows.length ? Object.keys(rows[0]) : [];
+    return `<div><b>${t}</b> (${rows.length}) — ${cols.join(", ")}</div>`;
+  }).join("");
+}
+
+function renderExamples(){
+  el("examples").innerHTML = EXAMPLES.map((e,i)=>
+    `<button class="chip" data-i="${i}">${esc(e[0])}</button>`).join("");
+  el("examples").onclick = (ev)=>{
+    const b = ev.target.closest("button[data-i]"); if(!b) return;
+    el("sqlq").value = EXAMPLES[+b.dataset.i][1];
+    runSql();
+  };
+}
+
+function runSql(){
+  if(!SQLDB){ el("sqlout").innerHTML = `<div class="err">SQL engine not loaded.</div>`; return; }
+  const q = el("sqlq").value.trim();
+  if(!q){ el("sqlout").innerHTML = ""; el("sqlmeta").textContent=""; return; }
+  const t0 = performance.now();
+  try{
+    const res = SQLDB.exec(q);
+    const ms = (performance.now()-t0).toFixed(1);
+    if(!res.length){
+      el("sqlout").innerHTML = `<div class="note">Query ran successfully — no rows returned.</div>`;
+      el("sqlmeta").textContent = `0 rows · ${ms} ms`;
+      return;
+    }
+    const {columns, values} = res[0];
+    el("sqlmeta").textContent = `${values.length} row${values.length===1?"":"s"} · ${ms} ms`;
+    el("sqlout").innerHTML = `<div class="tablewrap"><table><thead><tr>` +
+      columns.map(c=>`<th>${esc(c)}</th>`).join("") + `</tr></thead><tbody>` +
+      values.map(row=>`<tr>` + row.map(v=>{
+        const isNum = typeof v === "number";
+        return `<td class="${isNum?"num":""}">${v===null?'<span style="color:#9aa5b1">NULL</span>':esc(v)}</td>`;
+      }).join("") + `</tr>`).join("") + `</tbody></table></div>`;
+  }catch(e){
+    el("sqlmeta").textContent = "";
+    el("sqlout").innerHTML = `<div class="err">${esc(e.message)}</div>`;
+  }
+}
+
+function initSql(){
+  renderSchema();
+  renderExamples();
+  el("sqlq").value = EXAMPLES[0][1];
+  el("runsql").onclick = runSql;
+  el("sqlq").addEventListener("keydown", e=>{
+    if((e.metaKey||e.ctrlKey) && e.key==="Enter") runSql();
+  });
+
+  if(typeof initSqlJs === "undefined"){
+    el("sqlnote").innerHTML = `<div class="err">The SQL engine (sql.js) could not load — it is fetched from a CDN, so this section needs an internet connection. Every other tab works offline.</div>`;
+    return;
+  }
+  initSqlJs({locateFile: f=>`https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${f}`})
+    .then(SQL=>{
+      SQLDB = buildSqlDb(SQL);
+      el("sqlnote").innerHTML = `<div class="note">Live SQLite database built in your browser from the research dataset —
+        ${TABLES.length} tables, all joins available. Press <code>Cmd/Ctrl + Enter</code> to run.</div>`;
+      runSql();
+    })
+    .catch(err=>{
+      el("sqlnote").innerHTML = `<div class="err">Could not initialize sql.js: ${esc(err.message)}</div>`;
+    });
+}
+
+/* ---------------- boot ---------------- */
+renderOverview();
+renderOrgFilters(); renderOrgs();
+renderRecs(); renderDeep(); renderSources();
+renderReaderFilters();
+initSql();
+
+fetch("bruincast_reader/data.json").then(r=>r.ok?r.json():Promise.reject())
+  .catch(()=>fetch("data.json").then(r=>r.ok?r.json():Promise.reject()))
+  .then(d=>{ FEED_ITEMS = d.items||[]; renderReader();
+             el("foot").textContent = `Feed data exported ${new Date(d.generated_at).toLocaleString()}.`; })
+  .catch(()=>{ renderReader(); });
+
+el("foot").textContent = el("foot").textContent ||
+  "BruinCast research — generated from Student_Run_Media_Research.xlsx";
+</script>
+</body>
+</html>

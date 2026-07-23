@@ -1,0 +1,24 @@
+feed_name,feed_url,site_url,vertical,school_id,category_id,org_id
+Daily Bruin — All,https://dailybruin.com/feed,https://dailybruin.com,news,18,2,22
+Daily Bruin — Sports,https://dailybruin.com/category/sports/feed,https://dailybruin.com/category/sports,sports,18,1,22
+Daily Bruin — Arts,https://dailybruin.com/category/arts/feed,https://dailybruin.com/category/arts,art_design,18,2,22
+UCLA Radio,https://uclaradio.com/feed,https://uclaradio.com,radio,18,3,23
+Daily Orange (Syracuse),https://dailyorange.com/feed/,https://dailyorange.com,news,1,2,
+CitrusTV,https://www.citrustv.com/feed/,https://www.citrustv.com,video,1,4,1
+Daily Texan,https://thedailytexan.com/feed,https://thedailytexan.com,news,4,2,10
+Daily Northwestern,https://dailynorthwestern.com/feed,https://dailynorthwestern.com,news,2,2,12
+Harvard Crimson,https://www.thecrimson.com/feeds/rss/,https://www.thecrimson.com,news,15,2,11
+Columbia Daily Spectator,https://www.columbiaspectator.com/feed/,https://www.columbiaspectator.com,news,9,2,13
+Daily Californian,https://dailycal.org/feed,https://dailycal.org,news,16,2,14
+Daily Collegian (Penn State),https://www.psucollegian.com/search/?f=rss,https://www.psucollegian.com,news,8,2,
+Marquette Wire,https://marquettewire.org/feed/,https://marquettewire.org,news,14,2,4
+State Press (ASU),https://www.statepress.com/feed/,https://www.statepress.com,news,5,2,6
+The Maneater (Missouri),https://www.themaneater.com/feed/,https://www.themaneater.com,news,6,2,
+Trojan Vision (USC),https://trojanvision.usc.edu/feed/,https://trojanvision.usc.edu,film_tv_theater,3,4,26
+Annenberg TV News (USC),https://www.atvn.org/rss,https://www.atvn.org,video,3,4,27
+College Esports News,https://collegeesportsnews.org/feed/,https://collegeesportsnews.org,gaming,,7,
+Berkeley Economic Review,https://econreview.berkeley.edu/feed/,https://econreview.berkeley.edu,business,16,2,32
+Berkeley Science Review,https://www.berkeleysciencereview.com/feed,https://www.berkeleysciencereview.com,sciences,16,2,34
+Berkeley Scientific Journal,https://bsj.studentorg.berkeley.edu/feed,https://bsj.studentorg.berkeley.edu,sciences,16,2,35
+Illumin (USC Engineering),https://illumin.usc.edu/feed,https://illumin.usc.edu,sciences,3,2,36
+v.1 (RISD),https://volume-1.org/feed,https://volume-1.org,art_design,22,2,30

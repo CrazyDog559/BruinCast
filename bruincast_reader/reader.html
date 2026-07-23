@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BruinCast Reader</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#fff; --ink:#12181f; --muted:#5f6b7a;
+    --line:#e3e7ec; --accent:#2774AE; --accent2:#FFD100; --shadow:0 1px 3px rgba(16,24,40,.06);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  header{background:var(--accent);color:#fff;padding:18px 22px;
+         border-bottom:4px solid var(--accent2)}
+  header h1{margin:0;font-size:19px;letter-spacing:.2px}
+  header p{margin:4px 0 0;font-size:13px;opacity:.9}
+  .wrap{max-width:1180px;margin:0 auto;padding:20px 22px 60px}
+
+  .stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:8px;
+        padding:10px 16px;box-shadow:var(--shadow);min-width:104px}
+  .stat b{display:block;font-size:21px;line-height:1.2}
+  .stat span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+  input[type=search],select{padding:8px 11px;border:1px solid var(--line);border-radius:7px;
+        background:var(--card);font-size:14px;color:var(--ink)}
+  input[type=search]{flex:1;min-width:210px}
+  button.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;
+        padding:6px 13px;font-size:13px;cursor:pointer;color:var(--muted)}
+  button.chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+
+  .item{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:14px 16px;
+        margin-bottom:9px;box-shadow:var(--shadow);display:flex;gap:14px}
+  .thumb{width:120px;height:68px;object-fit:cover;border-radius:6px;flex:none;background:#e9edf1}
+  .body{min-width:0;flex:1}
+  .item h3{margin:0 0 5px;font-size:15.5px;line-height:1.35}
+  .item h3 a{color:var(--ink);text-decoration:none}
+  .item h3 a:hover{color:var(--accent);text-decoration:underline}
+  .meta{font-size:12px;color:var(--muted);display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+  .tag{background:#eef2f6;border-radius:4px;padding:1px 7px;font-size:11px;color:#41505f}
+  .tag.v{background:#e7f0f8;color:#1d5a8a}
+  .summary{margin:7px 0 0;font-size:13.5px;color:#41505f;
+           display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .empty{background:var(--card);border:1px dashed var(--line);border-radius:9px;
+         padding:34px;text-align:center;color:var(--muted)}
+  .empty code{background:#eef2f6;padding:2px 6px;border-radius:4px;font-size:12.5px}
+  footer{color:var(--muted);font-size:12px;margin-top:22px;text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <h1>BruinCast Reader</h1>
+  <p>Student-run media feeds — RSS &amp; Media RSS</p>
+</header>
+
+<div class="wrap">
+  <div class="stats" id="stats"></div>
+
+  <div class="controls">
+    <input type="search" id="q" placeholder="Search headlines, outlets, authors…">
+    <select id="school"><option value="">All schools</option></select>
+    <select id="sort">
+      <option value="new">Newest first</option>
+      <option value="old">Oldest first</option>
+    </select>
+  </div>
+  <div class="controls" id="verticals"></div>
+
+  <div id="list"></div>
+  <footer id="foot"></footer>
+</div>
+
+<script>
+let DATA = {items:[], feeds:[], generated_at:null};
+let activeVertical = "";
+
+const el  = (id) => document.getElementById(id);
+const esc = (s) => (s||"").replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function fmtDate(iso){
+  if(!iso) return "";
+  const d = new Date(iso);
+  if(isNaN(d)) return "";
+  const days = Math.floor((Date.now() - d) / 86400000);
+  if(days === 0) return "today";
+  if(days === 1) return "yesterday";
+  if(days < 30)  return days + "d ago";
+  return d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
+}
+
+function boot(){
+  const items = DATA.items || [];
+  const live  = (DATA.feeds||[]).filter(f => f.last_status === "ok").length;
+  const media = items.reduce((n,i) => n + Object.values(i.assets||{}).reduce((a,b)=>a+b,0), 0);
+
+  el("stats").innerHTML = [
+    ["Items", items.length], ["Feeds", (DATA.feeds||[]).length],
+    ["Responding", live], ["Media assets", media]
+  ].map(([k,v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("");
+
+  const schools = [...new Set(items.map(i=>i.school_name).filter(Boolean))].sort();
+  el("school").innerHTML = '<option value="">All schools</option>' +
+    schools.map(s=>`<option>${esc(s)}</option>`).join("");
+
+  const verts = [...new Set(items.map(i=>i.vertical).filter(Boolean))].sort();
+  el("verticals").innerHTML = ['<button class="chip" data-v="" aria-pressed="true">All</button>']
+    .concat(verts.map(v=>`<button class="chip" data-v="${esc(v)}" aria-pressed="false">${esc(v.replace(/_/g," "))}</button>`))
+    .join("");
+  el("verticals").onclick = (e) => {
+    const b = e.target.closest("button.chip"); if(!b) return;
+    activeVertical = b.dataset.v;
+    [...el("verticals").children].forEach(c => c.setAttribute("aria-pressed", c===b));
+    render();
+  };
+
+  ["q","school","sort"].forEach(id => el(id).addEventListener("input", render));
+  render();
+}
+
+function render(){
+  const q = el("q").value.toLowerCase().trim();
+  const school = el("school").value;
+  const sort = el("sort").value;
+
+  let rows = (DATA.items||[]).filter(i => {
+    if(activeVertical && i.vertical !== activeVertical) return false;
+    if(school && i.school_name !== school) return false;
+    if(q){
+      const hay = [i.title,i.feed_name,i.author,i.summary,i.school_name].join(" ").toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  rows.sort((a,b) => {
+    const x = a.published_at||"", y = b.published_at||"";
+    return sort === "new" ? y.localeCompare(x) : x.localeCompare(y);
+  });
+
+  if(!rows.length){
+    el("list").innerHTML = DATA.items.length
+      ? `<div class="empty">No items match those filters.</div>`
+      : `<div class="empty">
+           <p><strong>No data loaded yet.</strong></p>
+           <p>Run the ingester, then reload this page:</p>
+           <p><code>python ingest.py init</code> → <code>python ingest.py load feeds.csv</code>
+              → <code>python ingest.py fetch</code> → <code>python ingest.py export</code></p>
+         </div>`;
+    el("foot").textContent = "";
+    return;
+  }
+
+  el("list").innerHTML = rows.map(i => {
+    const assets = Object.entries(i.assets||{})
+      .map(([k,v]) => `<span class="tag">${v} ${esc(k)}</span>`).join("");
+    return `<article class="item">
+      ${i.thumbnail ? `<img class="thumb" src="${esc(i.thumbnail)}" alt="" loading="lazy">` : ""}
+      <div class="body">
+        <h3><a href="${esc(i.link||"#")}" target="_blank" rel="noopener">${esc(i.title||"Untitled")}</a></h3>
+        <div class="meta">
+          <strong>${esc(i.feed_name||"")}</strong>
+          ${i.school_name ? `<span class="tag">${esc(i.school_name)}</span>`:""}
+          ${i.vertical ? `<span class="tag v">${esc(i.vertical.replace(/_/g," "))}</span>`:""}
+          ${i.author ? `<span>· ${esc(i.author)}</span>`:""}
+          ${i.published_at ? `<span>· ${fmtDate(i.published_at)}</span>`:""}
+          ${assets}
+        </div>
+        ${i.summary ? `<p class="summary">${esc(i.summary)}</p>`:""}
+      </div>
+    </article>`;
+  }).join("");
+
+  el("foot").textContent =
+    `Showing ${rows.length} of ${DATA.items.length} items` +
+    (DATA.generated_at ? ` · exported ${new Date(DATA.generated_at).toLocaleString()}` : "");
+}
+
+// data.json is written by `python ingest.py export`.
+// Opened via file:// some browsers block fetch — serve with:  python -m http.server
+fetch("data.json")
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(d => { DATA = d; boot(); })
+  .catch(() => boot());
+</script>
+</body>
+</html>

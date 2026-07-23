@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UCLA — BruinCast</title>
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <div class="brand"><h1>UCLA Student Media</h1>
+      <span class="tag-line">Everything UCLA already has</span></div>
+    <p class="lead">UCLA's student media runs through the Communications Board — 10 titles and 1,000+ students.
+      Strong in print and identity media; thin on broadcast and video. Here's the full inventory, live media
+      included, and where the gaps are.</p>
+    <nav class="site">
+      <a href="index.html">Research</a>
+      <a href="ucla.html" aria-current="page">UCLA</a>
+      <a href="colleges.html">Colleges</a>
+      <a href="other-media.html">Other Media</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="stats" id="stats"></div>
+
+  <div class="eyebrow">Live media</div>
+  <p class="sub">Embedded straight from UCLA's own channels.</p>
+  <div id="embeds"></div>
+
+  <div class="eyebrow">Organizations under the Communications Board</div>
+  <p class="sub">Click any to expand.</p>
+  <div id="orgs"></div>
+
+  <div class="eyebrow">Identity newsmagazines</div>
+  <p class="sub">Seven publications serving UCLA's communities — a distinctive strength few schools match.</p>
+  <div id="mags"></div>
+
+  <div class="eyebrow">What UCLA is missing</div>
+  <p class="sub">Gaps against benchmark schools. Full detail on the <a href="index.html">Research → Recommendations</a> tab.</p>
+  <div id="gaps"></div>
+
+  <footer id="foot"></footer>
+</div>
+
+<script src="assets/data.js"></script>
+<script src="assets/site.js"></script>
+<script>
+const {DB, el, esc, where, embeds, orgDetails} = BC;
+const UCLA = (DB.schools.find(s=>/Los Angeles/.test(s.school_name))||{}).school_id;
+const uclaOrgs = DB.organizations.filter(o=>String(o.school_id)===String(UCLA));
+
+el("stats").innerHTML = [
+  ["Media orgs", uclaOrgs.length],
+  ["Identity magazines", DB.ucla_extra.length],
+  ["Students involved", "1,000+"],
+  ["Live channels", where(DB.media_embeds,"page","ucla").length],
+].map(([k,v])=>`<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("");
+
+el("embeds").innerHTML = embeds("ucla");
+el("orgs").innerHTML = uclaOrgs.map(orgDetails).join("");
+el("mags").innerHTML = `<div class="tablewrap"><table>
+  <thead><tr><th>Publication</th><th>Focus</th></tr></thead><tbody>` +
+  DB.ucla_extra.map(m=>`<tr><td><strong>${esc(m.name)}</strong></td><td>${esc(m.desc)}</td></tr>`).join("") +
+  `</tbody></table></div>`;
+
+el("gaps").innerHTML = DB.ucla_recommendations
+  .filter(r=>r.priority==="High" || r.priority==="Medium")
+  .sort((a,b)=>(a.priority==="High"?0:1)-(b.priority==="High"?0:1))
+  .map(r=>{
+    const cat = DB.categories.find(c=>String(c.category_id)===String(r.category_id));
+    const cls = r.priority==="High"?"hi":"med";
+    return `<div class="card"><h3>${cat?esc(cat.category_name):"General"}
+      <span class="tag ${cls}">${esc(r.priority)}</span></h3>
+      <p style="margin:.2em 0"><strong>Gap:</strong> ${esc(r.gap)}</p>
+      <p style="margin:.2em 0"><strong>Do this:</strong> ${esc(r.recommendation)}
+      <span class="tag">model: ${esc(r.model_to_copy)}</span></p></div>`;
+  }).join("");
+
+el("foot").innerHTML = 'UCLA inventory drawn from the BruinCast research dataset. '+
+  'Live media embedded from UCLA Radio and the Daily Bruin video desk.';
+</script>
+</body>
+</html>

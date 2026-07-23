@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Colleges — BruinCast</title>
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <div class="brand"><h1>Other Colleges</h1>
+      <span class="tag-line">What peer schools run</span></div>
+    <p class="lead">Benchmark student-media programs at other universities, grouped by school. These are the
+      models UCLA can borrow from — the best treat print, radio, TV and broadcast as one connected system.</p>
+    <nav class="site">
+      <a href="index.html">Research</a>
+      <a href="ucla.html">UCLA</a>
+      <a href="colleges.html" aria-current="page">Colleges</a>
+      <a href="other-media.html">Other Media</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="stats" id="stats"></div>
+
+  <div class="eyebrow">Live media from peer programs</div>
+  <p class="sub">Embedded from their own YouTube channels.</p>
+  <div id="embeds"></div>
+
+  <div class="eyebrow">Browse by school</div>
+  <div class="controls">
+    <input type="search" id="q" placeholder="Search schools, organizations, descriptions…">
+    <select id="conf"><option value="">All conferences</option></select>
+    <select id="cat"><option value="">All categories</option></select>
+  </div>
+  <div id="groups"></div>
+
+  <footer id="foot"></footer>
+</div>
+
+<script src="assets/data.js"></script>
+<script src="assets/site.js"></script>
+<script>
+const {DB, el, esc, by, embeds, orgDetails} = BC;
+const UCLA = (DB.schools.find(s=>/Los Angeles/.test(s.school_name))||{}).school_id;
+
+// only non-UCLA schools that actually have organizations
+const peerOrgs = DB.organizations.filter(o=>String(o.school_id)!==String(UCLA));
+const peerSchoolIds = [...new Set(peerOrgs.map(o=>String(o.school_id)))];
+
+el("stats").innerHTML = [
+  ["Peer schools", peerSchoolIds.length],
+  ["Organizations", peerOrgs.length],
+  ["Conferences", new Set(peerSchoolIds.map(id=>{const s=by(DB.schools,"school_id",id);return s&&s.conference;}).filter(Boolean)).size],
+  ["Live channels", BC.where(DB.media_embeds,"page","colleges").length],
+].map(([k,v])=>`<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("");
+
+el("embeds").innerHTML = embeds("colleges");
+
+// filter controls
+const confs = [...new Set(peerSchoolIds.map(id=>{const s=by(DB.schools,"school_id",id);return s&&s.conference;}).filter(Boolean))].sort();
+el("conf").innerHTML = '<option value="">All conferences</option>' + confs.map(c=>`<option>${esc(c)}</option>`).join("");
+el("cat").innerHTML = '<option value="">All categories</option>' +
+  DB.categories.map(c=>`<option value="${c.category_id}">${esc(c.category_name)}</option>`).join("");
+
+function render(){
+  const q = el("q").value.toLowerCase().trim();
+  const cf = el("conf").value, ct = el("cat").value;
+
+  const schools = peerSchoolIds
+    .map(id=>by(DB.schools,"school_id",id))
+    .filter(Boolean)
+    .filter(s=>!cf || s.conference===cf)
+    .sort((a,b)=>a.school_name.localeCompare(b.school_name));
+
+  let html = "", shown = 0;
+  schools.forEach(s=>{
+    let orgs = peerOrgs.filter(o=>String(o.school_id)===String(s.school_id));
+    if(ct) orgs = orgs.filter(o=>String(o.category_id)===ct);
+    if(q) orgs = orgs.filter(o=>{
+      const cat = by(DB.categories,"category_id",o.category_id);
+      return [o.org_name,o.what_they_create,o.how_run_notes,s.school_name,cat&&cat.category_name]
+        .join(" ").toLowerCase().includes(q);
+    });
+    if(!orgs.length) return;
+    shown += orgs.length;
+    html += `<div class="schoolgroup">
+      <h3>${esc(s.school_name)} <span class="conf">${esc(s.conference||"")} · ${esc(s.location||"")}</span></h3>
+      ${orgs.map(orgDetails).join("")}</div>`;
+  });
+  el("groups").innerHTML = html || `<div class="empty">No organizations match those filters.</div>`;
+  el("foot").textContent = `${shown} organizations across ${schools.length} schools shown.`;
+}
+
+["q","conf","cat"].forEach(id=>el(id).addEventListener("input",render));
+render();
+</script>
+</body>
+</html>
