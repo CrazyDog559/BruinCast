@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Lab — BruinCast</title>
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/lab.css">
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <div class="brand"><h1>Data Lab</h1>
+      <span class="tag-line">Dataset quality, trends and models</span></div>
+    <p class="lead">The analyst's view of the BruinCast dataset: how complete and trustworthy it is, what the
+      tracked outlets actually publish, and whether the structural traits of a strong student-media programme
+      can be modelled from the research at all.</p>
+    <nav class="site">
+      <a href="index.html">Research</a>
+      <a href="ucla.html">UCLA</a>
+      <a href="colleges.html">Colleges</a>
+      <a href="other-media.html">Other Media</a>
+      <a href="data-lab.html" aria-current="page">Data Lab</a>
+    </nav>
+    <nav class="tabs" id="labnav" role="tablist" aria-label="Data Lab sections">
+      <button data-t="overview" role="tab" aria-selected="true"  aria-controls="overview">Overview</button>
+      <button data-t="quality"  role="tab" aria-selected="false" aria-controls="quality" tabindex="-1">Data Quality</button>
+      <button data-t="explore"  role="tab" aria-selected="false" aria-controls="explore" tabindex="-1">Exploration</button>
+      <button data-t="models"   role="tab" aria-selected="false" aria-controls="models"  tabindex="-1">Models</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="lab-head">
+    <div>
+      <h2>Student-media dataset — quality, trends and modelling</h2>
+      <p class="sub">One page for the questions a data scientist asks before anyone quotes a number: what is in
+        the dataset, what is missing, what is drifting, and how far the data can actually be pushed.</p>
+    </div>
+    <div class="run-status" id="runStatus" data-state="running" role="status" aria-live="polite">
+      <span class="dot" aria-hidden="true"></span><span class="txt">Starting…</span>
+    </div>
+  </div>
+
+  <form class="filters" id="filters" aria-label="Analysis filters" onsubmit="return false">
+    <div class="field">
+      <label for="fScope">Analysis scope</label>
+      <select id="fScope"></select>
+    </div>
+    <div class="field">
+      <label for="fDays">Date range (publishing corpus)</label>
+      <select id="fDays">
+        <option value="30">Last 30 days</option>
+        <option value="90">Last 90 days</option>
+        <option value="180">Last 180 days</option>
+        <option value="365">Last 365 days</option>
+        <option value="0">All available</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="fVertical">Vertical</label>
+      <select id="fVertical"></select>
+    </div>
+    <div class="field">
+      <label for="fThreshold">Decision threshold</label>
+      <select id="fThreshold">
+        <option value="0.3">0.30 — screen widely</option>
+        <option value="0.4">0.40</option>
+        <option value="0.5">0.50 — balanced</option>
+        <option value="0.6">0.60</option>
+        <option value="0.7">0.70 — high precision</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="rerun" class="visually-hidden">Analysis actions</label>
+      <div class="actions">
+        <button type="button" class="act" id="rerun">Re-run analysis</button>
+        <button type="button" class="ghost" id="reset">Reset</button>
+      </div>
+    </div>
+    <p class="hint" id="scopeHint"></p>
+  </form>
+
+  <!-- ============ OVERVIEW ============ -->
+  <section class="pane" id="overview" role="tabpanel" aria-labelledby="labnav" tabindex="0">
+    <div class="kpis" id="ovKpis"></div>
+
+    <div class="panel-grid">
+      <div class="stack">
+        <div class="card" id="datasetCard"></div>
+        <div id="ovTrend"></div>
+      </div>
+      <div class="stack">
+        <div>
+          <h3 class="eyebrow" style="margin-top:0">Alerts</h3>
+          <p class="sub">Raised by the checks that ran this session — every one carries the number behind it.</p>
+          <div class="checks" id="alerts"></div>
+        </div>
+        <div class="card">
+          <h3>Recommended next actions</h3>
+          <ol id="actions" style="padding-left:18px;margin:0;display:grid;gap:10px"></ol>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="eyebrow">Recent analyses</h3>
+    <p class="sub">Each run of the analysis on this page, newest first. Kept in memory for the session only.</p>
+    <div id="runlog"></div>
+  </section>
+
+  <!-- ============ DATA QUALITY ============ -->
+  <section class="pane" id="quality" role="tabpanel" aria-labelledby="labnav" tabindex="0" hidden>
+    <h2>Data quality</h2>
+    <p class="sub">Profiling and rule checks against the full research dataset. These run on every table
+      regardless of the analysis scope, because a scoped view hides exactly the problems this panel exists
+      to find.</p>
+    <div class="kpis" id="qKpis"></div>
+
+    <h3 class="eyebrow">Table profile</h3>
+    <div id="qTables"></div>
+
+    <h3 class="eyebrow">Completeness</h3>
+    <div id="qMissing"></div>
+
+    <h3 class="eyebrow">Checks</h3>
+    <p class="sub">Severity is a judgement about impact on analysis, not about the researcher. Each check states
+      the rule, the count, and what would fix it.</p>
+    <div class="checks" id="qChecks"></div>
+
+    <h3 class="eyebrow">Distribution drift</h3>
+    <div id="qDrift"></div>
+  </section>
+
+  <!-- ============ EXPLORATION ============ -->
+  <section class="pane" id="explore" role="tabpanel" aria-labelledby="labnav" tabindex="0" hidden>
+    <h2>Exploration</h2>
+    <p class="sub">Trends and distributions across two joined layers: the publishing corpus (what the tracked
+      outlets put out) and the research dataset (how those outlets are structured). Every chart has a data table
+      underneath it, and every mark is reachable by keyboard.</p>
+
+    <h3 class="eyebrow">Publishing activity</h3>
+    <div id="exTrend"></div>
+    <div class="chart-grid" id="exCorpus"></div>
+
+    <h3 class="eyebrow">Research dataset</h3>
+    <div class="chart-grid">
+      <div id="exYears"></div>
+      <div id="exSegments"></div>
+    </div>
+
+    <h3 class="eyebrow">Feature relationships</h3>
+    <div class="chart-grid">
+      <div id="exCorr"></div>
+      <div id="exScatter"></div>
+    </div>
+  </section>
+
+  <!-- ============ MODELS ============ -->
+  <section class="pane" id="models" role="tabpanel" aria-labelledby="labnav" tabindex="0" hidden>
+    <h2>Modelling</h2>
+    <p class="sub">Five experiments, all trained and cross-validated in the browser when the analysis runs.
+      Nothing here is stored, and nothing here is deployed.</p>
+
+    <div class="card" id="mTask"></div>
+
+    <h3 class="eyebrow">Experiment comparison</h3>
+    <div id="mResults"></div>
+
+    <h3 class="eyebrow">Selected model</h3>
+    <div class="kpis" id="mBestKpis"></div>
+    <div class="chart-grid">
+      <div id="mRoc"></div>
+      <div id="mConfusion"></div>
+    </div>
+    <div id="mCoef"></div>
+
+    <h3 class="eyebrow">Where the score is used</h3>
+    <div class="card" id="mShortlist"></div>
+
+    <h3 class="eyebrow">Definitions and provenance</h3>
+    <details class="card" open>
+      <summary style="cursor:pointer;font-weight:600;font-size:15.5px">Metric definitions</summary>
+      <dl class="metric-def" style="margin-top:12px">
+        <dt>Accuracy</dt><dd>Share of all organizations classified correctly. Misleading on its own here —
+          always predicting "not cited" already scores well because positives are rare.</dd>
+        <dt>Precision</dt><dd>Of the organizations the model flags, the share that really are cited.</dd>
+        <dt>Recall</dt><dd>Of the organizations that really are cited, the share the model recovers.</dd>
+        <dt>F1</dt><dd>Harmonic mean of precision and recall — the selection metric on this page.</dd>
+        <dt>ROC-AUC</dt><dd>Probability that a randomly chosen cited organization is ranked above a randomly
+          chosen uncited one. 0.5 is random ranking; it is threshold-independent.</dd>
+        <dt>PSI</dt><dd>Population Stability Index between two distributions of the same variable.
+          Under 0.10 stable, 0.10–0.25 moderate, above 0.25 material.</dd>
+        <dt>Leave-one-out CV</dt><dd>Each organization is held out once and predicted by a model fitted on the
+          other rows, so every reported score is out-of-fold.</dd>
+      </dl>
+    </details>
+    <div class="card" id="mLabels"></div>
+    <div class="card" id="mFeatures"></div>
+  </section>
+
+  <footer id="foot"></footer>
+</div>
+
+<script src="assets/data.js"></script>
+<script src="assets/lab-stats.js"></script>
+<script src="assets/charts.js"></script>
+<script src="assets/lab-mock.js"></script>
+<script src="assets/lab-data.js"></script>
+<script src="assets/lab.js"></script>
+</body>
+</html>
